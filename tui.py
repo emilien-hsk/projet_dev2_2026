@@ -121,6 +121,13 @@ def lignes_par_poste(jeu):
     return lignes
 
 
+def lignes_classement(jeu):
+    lignes = ["===== CLASSEMENT ====="]
+    for ligne in jeu.classement():
+        lignes.append(f"  {ligne.rang:>2}. {ligne.equipe.nom:<12} {ligne.total:>3} pts")
+    return lignes
+
+
 def enregistrer(jeu):
     lignes = [jeu.nom, ""] + lignes_par_equipe(jeu) + [""] + lignes_par_poste(jeu)
     with open("planning.txt", "w", encoding="utf-8") as fichier:
@@ -137,6 +144,7 @@ def main():
         print(" 3. Voir le planning des équipes")
         print(" 4. Voir le planning des postes")
         print(" 5. Enregistrer le planning dans un fichier")
+        print(" 6. Voir le classement")
         print(" 0. Quitter")
         choix = input("Ton choix : ").strip()
 
@@ -149,7 +157,7 @@ def main():
         elif choix == "2":
             jeu = jeu_exemple()
             lancer_rotation(jeu)
-        elif choix in ["3", "4", "5"] and (jeu is None or not jeu.a_une_rotation()):
+        elif choix in ["3", "4", "5", "6"] and (jeu is None or not jeu.a_une_rotation()):
             print("Il faut d'abord préparer un jeu (1) ou charger l'exemple (2).")
         elif choix == "3":
             print("\n".join(lignes_par_equipe(jeu)))
@@ -157,6 +165,8 @@ def main():
             print("\n".join(lignes_par_poste(jeu)))
         elif choix == "5":
             enregistrer(jeu)
+        elif choix == "6":
+            print("\n".join(lignes_classement(jeu)))
         else:
             print("Je n'ai pas compris, choisis un numéro du menu.")
 

@@ -50,6 +50,54 @@ class Passage:
         self.score = None  # pas encore de score annoncé
 
 
+class LigneClassement:
+    # Une ligne du classement : le rang, l'équipe et son total de points
+    def __init__(self, rang, equipe, total):
+        self.rang = rang
+        self.equipe = equipe
+        self.total = total
+
+
+class Classement:
+    def __init__(self, equipes, passages):
+        self.equipes = equipes
+        self.passages = passages
+
+    def lignes(self):
+        """Calcule le classement des équipes à partir des scores encodés (F-05).
+
+        PRE : self.equipes est une liste d'Equipe ; chaque passage de
+              self.passages a un score None ou entier de 0 à 10.
+        POST : renvoie une nouvelle liste de LigneClassement, une par équipe
+               de self.equipes, triée par total décroissant.
+               Le total d'une équipe est la somme de ses scores encodés
+               (0 si elle n'en a aucun ; les scores None sont ignorés).
+               Le rang vaut 1 + le nombre d'équipes qui ont un total
+               strictement plus grand : des équipes à égalité ont le même
+               rang (ex aequo, QO-02) et gardent l'ordre de self.equipes.
+               self.equipes et self.passages ne sont pas modifiées.
+        RAISES : rien.
+        """
+        totaux = []
+        for equipe in self.equipes:
+            total = 0
+            for p in self.passages:
+                if p.equipe is equipe and p.score is not None:
+                    total += p.score
+            totaux.append((equipe, total))
+        # Le tri de Python est stable : à égalité, l'ordre des équipes est gardé
+        totaux.sort(key=lambda paire: paire[1], reverse=True)
+
+        lignes = []
+        for position, (equipe, total) in enumerate(totaux, start=1):
+            if lignes and total == lignes[-1].total:
+                rang = lignes[-1].rang  # ex aequo avec l'équipe précédente
+            else:
+                rang = position
+            lignes.append(LigneClassement(rang, equipe, total))
+        return lignes
+
+
 class GrandJeu:
     def __init__(self, nom, debut, fin):
         if fin <= debut:
@@ -137,3 +185,7 @@ class GrandJeu:
             if p.poste is poste and p.creneau is creneau:
                 return p.equipe
         return None  # personne à ce poste pendant ce créneau
+
+    def classement(self):
+        """Renvoie les lignes du classement, recalculé à partir des scores actuels."""
+        return Classement(self.equipes, self.passages).lignes()
