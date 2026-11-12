@@ -1,11 +1,38 @@
+# Interface en terminal. C'est le seul fichier qui fait des print et des input.
+# Lancement : python tui.py
+#
+# Code écrit avec l'aide de Claude (Anthropic), avec l'accord de la professeure.
+
 from datetime import datetime
 
 from domaine import GrandJeu, ErreurJeu
 
+FIN_PAR_DEFAUT = datetime.strptime("17:30", "%H:%M")  # fin habituelle d'un grand jeu (EF-01.8)
 
-def demander_heure(question):
+
+def heure_actuelle():
+    # Les heures du jeu n'ont pas de date (strptime les place le 1er janvier 1900) :
+    # on ramène l'heure de l'ordinateur à ce même jour pour pouvoir les comparer.
+    return datetime.strptime(datetime.now().strftime("%H:%M"), "%H:%M")
+
+
+def demander_heure(question, defaut=None):
+    """Demande une heure à l'utilisateur jusqu'à obtenir une réponse valide.
+
+    PRE : question est une chaîne (str) ; defaut est None ou un datetime.
+    POST : renvoie un datetime du 1er janvier 1900 à l'heure tapée.
+           Sont acceptés « 14:00 », « 14h00 », « 14H00 », « 14h » (= 14h00)
+           et « 9h5 » (= 09h05), avec ou sans espaces autour.
+           Si la réponse est vide et que defaut n'est pas None, renvoie defaut.
+           Après chaque réponse incomprise (vide sans défaut, « 25h », « midi »…),
+           affiche un message d'aide et repose la question.
+    RAISES : rien (une réponse incomprise est redemandée).
+    """
     while True:
-        texte = input(question).strip().replace("h", ":")
+        texte = input(question).strip().lower()
+        if texte == "" and defaut is not None:
+            return defaut
+        texte = texte.replace("h", ":")
         if texte.endswith(":"):
             texte = texte + "00"  # « 14h » veut dire 14h00
         try:
@@ -31,7 +58,7 @@ def preparer_jeu():
     nom = input("Nom du jeu : ")
     while True:
         debut = demander_heure("Heure de début : ")
-        fin = demander_heure("Heure de fin : ")
+        fin = demander_heure("Heure de fin (Entrée = 17h30) : ", FIN_PAR_DEFAUT)
         try:
             jeu = GrandJeu(nom, debut, fin)
             break
