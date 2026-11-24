@@ -1,7 +1,5 @@
 # Interface en terminal. C'est le seul fichier qui fait des print et des input.
 # Lancement : python tui.py
-#
-# Code écrit avec l'aide de Claude (Anthropic), avec l'accord de la professeure.
 
 from datetime import datetime
 
@@ -121,6 +119,83 @@ def lignes_par_poste(jeu):
     return lignes
 
 
+def lignes_suivi(jeu, maintenant):
+    # Où est chaque équipe, où elle va ensuite, et l'état de chacune de ses épreuves
+    creneau = jeu.creneau_a(maintenant)
+    if creneau is None:
+        lignes = [f"===== SUIVI À {maintenant:%Hh%M} : aucun créneau en cours ====="]
+    else:
+        lignes = [f"===== SUIVI À {maintenant:%Hh%M} : créneau {creneau} ====="]
+    for equipe in jeu.equipes:
+        actuel = jeu.passage_actuel(equipe, maintenant)
+        suivant = jeu.passage_suivant(equipe, maintenant)
+        ici = actuel.poste.nom if actuel is not None else "pas d'épreuve en cours"
+        if suivant is None:
+            ensuite = "plus rien"
+        else:
+            ensuite = f"{suivant.poste.nom} à {suivant.creneau.debut:%Hh%M}"
+        lignes.append("")
+        lignes.append(f"{equipe.nom} : maintenant {ici}, ensuite {ensuite}")
+        for passage in jeu.passages_de(equipe):
+            lignes.append(f"  {passage.creneau}  {passage.poste.nom:<14} {passage.etat(maintenant).value}")
+    return lignes
+
+
+def suivre_jeu(jeu):
+    maintenant = demander_heure("Quelle heure est-il ? (Entrée = maintenant) ", heure_actuelle())
+    print("\n".join(lignes_suivi(jeu, maintenant)))
+
+
+def choisir_passage(jeu, maintenant):
+    # d'abord les épreuves à noter, puis celles déjà notées (pour corriger)
+    a_noter = jeu.passages_a_noter(maintenant)
+    deja_notes = [p for p in jeu.passages if p.score is not None]
+    choix_possibles = a_noter + deja_notes
+    if len(choix_possibles) == 0:
+        print("Aucune épreuve à noter pour l'instant.")
+        return None
+    print("\nÉpreuves à noter :")
+    if len(a_noter) == 0:
+        print("  (aucune)")
+    for numero, p in enumerate(a_noter, start=1):
+        print(f"  {numero:>2}. {p.creneau}  {p.equipe.nom} au poste {p.poste.nom}")
+    if len(deja_notes) > 0:
+        print("Épreuves déjà notées (pour corriger) :")
+        for numero, p in enumerate(deja_notes, start=len(a_noter) + 1):
+            print(f"  {numero:>2}. {p.creneau}  {p.equipe.nom} au poste {p.poste.nom} : {p.score} pts")
+    texte = input("Numéro de l'épreuve (Entrée pour annuler) : ").strip()
+    if texte == "":
+        return None
+    if not texte.isdigit() or not 1 <= int(texte) <= len(choix_possibles):
+        print("Je n'ai pas compris, choisis un numéro de la liste.")
+        return None
+    return choix_possibles[int(texte) - 1]
+
+
+def encoder_un_score(jeu):
+    # F-04 : l'animateur donne le score par talkie, on l'encode ou on le corrige
+    maintenant = demander_heure("Quelle heure est-il ? (Entrée = maintenant) ", heure_actuelle())
+    passage = choisir_passage(jeu, maintenant)
+    if passage is None:
+        return
+    if passage.score is not None:
+        print(f"Score actuel : {passage.score}. Tape le nouveau score pour le corriger.")
+    try:
+        valeur = int(input("Score (0 à 10) : ").strip())
+    except ValueError:
+        print("Oups, le score doit être un nombre entier de 0 à 10.")
+        return
+    try:
+        if passage.score is None:
+            jeu.encoder_score(passage.equipe, passage.creneau, valeur, maintenant)
+            print("Score enregistré.")
+        else:
+            jeu.corriger_score(passage.equipe, passage.creneau, valeur)
+            print("Score corrigé.")
+    except ErreurJeu as erreur:
+        print(f"Oups, {erreur}")
+
+
 def lignes_classement(jeu):
     lignes = ["===== CLASSEMENT ====="]
     for ligne in jeu.classement():
@@ -145,6 +220,8 @@ def main():
         print(" 4. Voir le planning des postes")
         print(" 5. Enregistrer le planning dans un fichier")
         print(" 6. Voir le classement")
+        print(" 7. Suivre le jeu (où est chaque équipe)")
+        print(" 8. Encoder ou corriger un score")
         print(" 0. Quitter")
         choix = input("Ton choix : ").strip()
 
@@ -157,7 +234,7 @@ def main():
         elif choix == "2":
             jeu = jeu_exemple()
             lancer_rotation(jeu)
-        elif choix in ["3", "4", "5", "6"] and (jeu is None or not jeu.a_une_rotation()):
+        elif choix in ["3", "4", "5", "6", "7", "8"] and (jeu is None or not jeu.a_une_rotation()):
             print("Il faut d'abord préparer un jeu (1) ou charger l'exemple (2).")
         elif choix == "3":
             print("\n".join(lignes_par_equipe(jeu)))
@@ -167,6 +244,10 @@ def main():
             enregistrer(jeu)
         elif choix == "6":
             print("\n".join(lignes_classement(jeu)))
+        elif choix == "7":
+            suivre_jeu(jeu)
+        elif choix == "8":
+            encoder_un_score(jeu)
         else:
             print("Je n'ai pas compris, choisis un numéro du menu.")
 
